@@ -70,7 +70,6 @@ input ( struct tree* te){
 insert( struct tree* te ,int value ){
 	struct flag* flag = getNode( te,value );
 	if( flag -> flag == true ){
-		//printf( "元素 %d 已经存在被抛弃",value );
 	}else{//元素不存在 构造新节点 插入
 		
 		struct node* t = ( struct node* )malloc( sizeof(struct node)*1 );
@@ -220,7 +219,6 @@ bool delete ( struct tree* te, int value ){
 
 //获取某个已经存在节点的父节点
 struct node* getPare( struct tree* te,struct node* node){
-	//struct node* root = te -> root ;
 	int value = node -> value;
 	struct node* temp = te -> root;
 	struct node* parent = NULL;
@@ -232,10 +230,6 @@ struct node* getPare( struct tree* te,struct node* node){
 			temp = temp -> left;
 		}
 	}
-	/*if( temp == NULL ){
-		printf("不存在要求的节点，但是逻辑却存在，程序终止");
-		exit(0);
-	}*/
 	return parent;
 }
 //寻找某个节点在中序遍历下的后继节点
@@ -258,4 +252,3 @@ struct node* getFront( struct tree* te,struct node* node ){
 		return t;
 	}
 }
-//程序里面获取前继节点有问题，还有删除某个节点时，遇到1,2,3,4的这样的BST会有问题。

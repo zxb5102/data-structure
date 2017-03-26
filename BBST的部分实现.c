@@ -7,6 +7,10 @@
 #define LEFT -1
 #define CANCEL 0
 
+/*struct patter{
+	struct node* node;
+	struct node* pare;
+};*/
 struct node{
 	int value;
 	struct node* left;
@@ -19,6 +23,10 @@ struct tree{
 	struct node* root;
 };
 
+bool delete( struct tree* te, struct node* pare,struct node* node,int value );
+bool dealNode( struct node* node,struct node* pare);
+struct node* getFront( struct node* node );
+bool dealbf( struct node* node ,struct node* pare,int flag,bool nextFlag );
 struct node* ll( struct node* f1 );
 struct node* lr( struct node* f1 );
 struct node* rl( struct node* f1 );
@@ -28,9 +36,12 @@ int insert( struct tree* te,struct node* pare, struct node* node,int value );
 //AVL树的 实现
 main(){
 
-	struct tree te;
+	struct tree te ;
 	init( &te );
 	getInput( &te );
+	delete( &te,te.root,te.root -> left,1);
+	showAll( te.root -> left );
+	printf("\n");
 }
 
 //中序遍历BBST
@@ -81,14 +92,17 @@ int insert( struct tree* te,struct node* pare, struct node* node,int value ){
 		int flag = CANCEL;
 		if( node -> value > value ){//区分左节点 是否为空 
 			if( node -> left == NULL ){
-				flag = LEFT;
 				struct node* t = (struct node* )malloc(sizeof(struct node));
 				t -> value = value;
 				t -> left = NULL;
 				t -> right = NULL;
 				t -> bf = 0;
 				node -> left = t;
-				flag = LEFT;
+				if( node -> bf == -1 ){//判断 添加节点 对父节点的高度是否有影响
+					flag = CANCEL;
+				}else{
+					flag = LEFT;
+				}
 				node -> bf++;
 				te -> size ++;
 			}else{
@@ -110,6 +124,10 @@ int insert( struct tree* te,struct node* pare, struct node* node,int value ){
 						}else{
 							pare -> right = temp ;
 						}
+					}else if( node -> bf == 1){
+					//递归操作后 当前的节点的保持了 平衡 但是 高度增加了 放回值 通知父节点
+					//bf == 1 原来节点 为 0 平衡状态 添加后 节点 的高度改变但是任然是平衡
+						flag = LEFT;	
 					}
 				}
 			}
@@ -117,14 +135,17 @@ int insert( struct tree* te,struct node* pare, struct node* node,int value ){
 		}else if( node -> value < value ){//节点值小于要插入的值 区分右节点 是否为空
 
 			if( node -> right == NULL ){
-				flag = RIGHT;
 				struct node* t = (struct node* )malloc(sizeof(struct node));
 				t -> value = value;
 				t -> left = NULL;
 				t -> right = NULL;
 				t -> bf = 0;
 				node -> right = t;
-				flag = RIGHT;
+				if( node -> bf == 1 ){//判断 添加节点 对父节点的高度是否有影响
+					flag = CANCEL;
+				}else{
+					flag = RIGHT;
+				}
 				node -> bf--;
 				te -> size ++;
 			}else{
@@ -146,6 +167,8 @@ int insert( struct tree* te,struct node* pare, struct node* node,int value ){
 						}else{
 							pare -> right = temp ;
 						}
+					}else if( node -> bf == -1 ){//原来是 0 的平衡度 添加节点平衡度改变 增高 向上传递
+						flag = RIGHT;
 					}
 				}
 			}
@@ -228,4 +251,144 @@ struct node* rl( struct node* f1 ){
 	f2 -> left = d;
 	//进行一次右旋
 	return rr( f1 );
+}
+//下面是删除节点维持平衡的逻辑
+
+//递归删除节点
+bool delete( struct tree* te, struct node* pare,struct node* node,int value ){
+	int flag ;//这个 flag 用来标识节点是在左边删除了，还是在右边删除了
+	bool nextFlag;//用来标识 递归 放回的是在左边还是在右边
+
+	//判读当前的节点是否为 NULL 
+	if( node != NULL ){
+		if( node -> value == value ){
+			//寻找到要删除的节点 判读 左右孩子 来选择删除方案
+			bool tflag = dealNode( node,pare );//返回是否删除了节点
+			if( tflag == false ){
+				struct node* front = getFront( node );
+				int t1 = front -> value;
+				delete( te,pare,node,front -> value );//递归删除前继节点
+				node -> value = t1;
+			}
+			te -> size --;
+			nextFlag = true;
+			flag = CANCEL;
+		}else if( node -> value > value ){//节点值大于要删除的值
+			nextFlag = delete( te, node,node -> left,value );
+			flag = LEFT;
+		}else{//节点值小于要删除的值
+			nextFlag = delete( te,node,node -> right,value );
+			flag = RIGHT;
+		}
+		
+		//根据递归返回的 nextFlag 和 flag 判断当前的节点是否满足平衡,不平衡进行相应的判读
+		//后旋转平衡，判断是否要修改 nextFlag 的值
+		if( flag != CANCEL ){
+			nextFlag = dealbf( node,pare,flag,nextFlag );
+		}
+
+	}else{//没有当前要删除的值
+
+		nextFlag = false;
+	}
+
+	return nextFlag;
+}
+//删除当前节点的方法
+bool dealNode( struct node* node,struct node* pare){
+	bool flag = true;
+	if( node -> left == NULL && node -> right == NULL ){//没有子女节点
+		if( pare -> left == node ){
+			pare -> left = NULL;
+		}else{
+			pare -> right = NULL;
+		}
+		free( node );
+	}else if( node -> left != NULL && node -> right != NULL ){//含有两个节点
+		//将要删除的节点转移到 删除它的中序遍历下的前继节点
+		/*struct patter* tnode = getFront( node );
+		int value = tnode -> node -> value;
+		dealNode( tnode -> node,tnode -> pare );
+		free( tnode );//删除 传输信息的节点
+		node -> value = value;//将 实际要删除的节点的值替换
+		*/
+		flag = false;
+	}else{//含有一个节点 改变父节点的指向 删除要删除的节点
+		struct node* t ;
+		if( node -> left != NULL ){//获取那个不空的子女节点
+			t = node -> left;
+		}else{
+			t = node -> right;
+		}
+		if( pare -> left == node ){//父节点的左节点指向当前要删除的节点
+			pare -> left = t; 
+		}else{
+			pare -> right = t;
+		}
+		free( node );//删除节点
+	}
+	return flag;
+}
+
+//这个节点肯定还有 前继节点 因为 它还有俩个孩子,
+struct node* getFront( struct node* node ){
+	struct node* front ;
+	front = node -> left;
+	while( front -> right != NULL ){
+		front = front -> right;
+	}
+	/*struct patter* pat = (struct patter*)malloc( sizeof(struct patter) );
+	pat -> node = front;
+	pat -> pare = pare;*/
+	return front;//返回中序前继节点,和它的父节点
+}
+
+
+
+//检测当前 节点 是否满足平衡 进行相应的旋转
+//当前方法正确的条件 删除节点 后 产生了不平衡，旋转回来后会降低高度 ,
+//所以只要递归删除的时候，递归返回删除成功了，那么当前的节点的 bf 值必须改变。
+bool dealbf( struct node* node ,struct node* pare,int flag,bool nextFlag ){
+	bool new_flag;
+	if( nextFlag == true ){
+		int tbf = node -> bf + flag;//判断平衡因子
+		int nextbf;
+		if( tbf >= 2 || tbf <= -2 ){
+			if( flag == LEFT ){//获取右节点的 bf  ，并且右边节点不可能为空
+				nextbf = node -> right -> bf;	
+			}else{
+				nextbf = node -> left -> bf;
+			}
+			//判断旋转的方法
+			struct node* tnode;
+			if( tbf > 0 && nextbf >0 ){//ll类型旋转
+				tnode = ll( node );
+			}else if( tbf < 0 && nextbf < 0 ){//rr类型旋转
+				tnode = rr( node );
+			}else if( tbf < 0 && nextbf >0 ){//rl类型的旋转
+				tnode = rl( node );
+			}else{//lr类型的旋转
+				tnode = lr( node );
+			}
+			//更改旋转后的父节点指向
+			if( pare -> left == node ){//父节点的左节点指向，当前不平衡的节点
+				pare -> left = tnode;
+			}else{
+				pare -> right = tnode;
+			}
+			//因为删除节点，不平衡后，旋转导致，高度变化了，父节点任然收到影响，任然需要进行 平衡检测
+			//删除节点后 旋转搞平衡 节点高度必定降低
+			new_flag = true;
+		}else{//删除节点平衡后的情况
+			if( node -> bf != 0 ){//当前节点，删除节点后虽然平衡,当高度改变了，上面的节点任然要进行判断
+				new_flag = true;
+			}else{
+				new_flag = false;
+			}
+			node -> bf = tbf;//删除节点后节点任然平衡,更新平衡因子
+		}
+	}else{
+		new_flag = nextFlag;
+	}
+	return new_flag;
 }
