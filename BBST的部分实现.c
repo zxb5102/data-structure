@@ -39,17 +39,32 @@ main(){
 	struct tree te ;
 	init( &te );
 	getInput( &te );
-	delete( &te,te.root,te.root -> left,1);
-	showAll( te.root -> left );
+	getDel( &te );
 	printf("\n");
 }
 
+getDel( struct tree* te ){
+	int value ;
+	printf("\n键入你要删除的值 按 -1 终止输入\n");
+	scanf("%d",&value);
+	bool flag ;
+	while( value != -1 && te -> size > 0 ){
+		 delete( te,te -> root,te -> root -> left,value );
+			if( te -> size != 0 ){
+				showAll( te -> root -> left );
+			}else{
+				printf("当前的BBST没有节点");
+			}
+			printf("\n");
+		scanf("%d",&value);
+	}
+}
 //中序遍历BBST
 showAll( struct node* node ){
 	if( node -> left != NULL ){
 		showAll( node -> left );
 	}
-	printf("%d\t",node -> value );
+	printf("%d(%d)\t",node -> value,node -> bf );
 	if( node -> right != NULL ){
 		showAll( node -> right );
 	}
@@ -195,14 +210,18 @@ int insert( struct tree* te,struct node* pare, struct node* node,int value ){
 struct node* ll( struct node* f1 ){
 	struct node* f2 =  f1 -> left;
 
-	struct node* a =  f1 -> right;
 	struct node* b =  f2 -> right;
 
 	f2 -> right = f1;
 	f1 -> left = b;
 	//处理旋转后 的平衡因子
-	f1 -> bf = 0;
-	f2 -> bf = 0;
+	if( f2 -> bf == 1 ){
+		f1 -> bf = 0;
+		f2 -> bf = 0;
+	}else{//当删除节点的时候可能出现的情况 在插入节点的时候不可能 执行
+		f1 -> bf = 1;
+		f2 -> bf = -1;
+	}
 	return f2;
 }
 //lr型的插入的旋转
@@ -210,47 +229,67 @@ struct node* lr( struct node* f1 ){
   struct node* f2 =  f1 -> left;
 	struct node* f3 =  f2 -> right;
 
-	struct node* a =  f1 -> right;
-	struct node* b =  f2 -> left;
 	struct node* c =  f3 -> left;
-	struct node* d =  f3 -> right;
-  
-	//进行一次左旋
-	f1 -> left = f3;
-	f3 -> left = f2;
 	f2 -> right = c;
-	//一次右旋
-	return ll( f1 );
+
+	struct node* d =  f3 -> right;
+	f1 -> left = d;
+
+	f3 -> left = f2;
+	f3 -> right = f1;
+
+	if( f3 -> bf == 1 ){
+		f1 -> bf = -1;
+		f2 -> bf = 0;
+		f3 -> bf = 0;
+	}else{//这里的情况是 bf == -1 的情况
+		f1 -> bf = 0;
+		f2 -> bf = 1;
+		f3 -> bf = 0;
+	}
+  
+	return f3;
 }
 //rr型的插入的旋转
 struct node* rr( struct node* f1 ){
   struct node* f2 =  f1 -> right;
 
-	struct node* a =  f1 -> left;
 	struct node* b =  f2 -> left;
 	
 	f2 -> left = f1;
 	f1 -> right = b;
 	//处理旋转后 的平衡因子 
-	f1 -> bf = 0;
-	f2 -> bf = 0;
+	if( f2 -> bf == -1 ){
+		f1 -> bf = 0;
+		f2 -> bf = 0;
+	}else{//和 ll 类型的相似 都是在删除的时候考虑到的情况
+		f1 -> bf = -1;
+		f2 -> bf = 1;
+	}
 	return f2;
 }
 //rl型的插入的旋转
 struct node* rl( struct node* f1 ){
   struct node* f2 =  f1 -> right;
 	struct node* f3 =  f2 -> left;
-
-	struct node* a =  f1 -> left;
-	struct node* b =  f2 -> right;
-	struct node* c =  f3 -> left;
-	struct node* d =  f3 -> right;
-	//进行一次右旋
-	f1 -> right = f3;
+	
+	struct node* c =  f3 -> right;
+	struct node* d =  f3 -> left;
+	f1 -> right = d;
+	f2 -> left = c;
+	f3 -> left = f1;
 	f3 -> right = f2;
-	f2 -> left = d;
+	if( f2 -> bf == -1 ){
+		f3 -> bf = 0;
+		f1 -> bf = 1;
+		f2 -> bf = 0;
+	}else{
+		f3 -> bf = 0;
+		f1 -> bf = 0;
+		f2 -> bf = -1;
+	}
 	//进行一次右旋
-	return rr( f1 );
+	return f3;
 }
 //下面是删除节点维持平衡的逻辑
 
@@ -354,6 +393,7 @@ bool dealbf( struct node* node ,struct node* pare,int flag,bool nextFlag ){
 		int tbf = node -> bf + flag;//判断平衡因子
 		int nextbf;
 		if( tbf >= 2 || tbf <= -2 ){
+			new_flag = false;
 			if( flag == LEFT ){//获取右节点的 bf  ，并且右边节点不可能为空
 				nextbf = node -> right -> bf;	
 			}else{
@@ -361,11 +401,19 @@ bool dealbf( struct node* node ,struct node* pare,int flag,bool nextFlag ){
 			}
 			//判断旋转的方法
 			struct node* tnode;
-			if( tbf > 0 && nextbf >0 ){//ll类型旋转
+			
+			new_flag = false;
+			if( tbf > 0 && nextbf >=0 ){//ll类型旋转
 				tnode = ll( node );
-			}else if( tbf < 0 && nextbf < 0 ){//rr类型旋转
+				if( nextbf > 0 ){//正常的 ll 类型 需要进行传递
+					new_flag = true;	
+				}
+			}else if( tbf < 0 && nextbf <= 0 ){//rr类型旋转
 				tnode = rr( node );
-			}else if( tbf < 0 && nextbf >0 ){//rl类型的旋转
+				if( nextbf < 0 ){//正常的 rr 类型 需要进行传递
+					new_flag = true;
+				}
+			}else if( tbf < 0 && nextbf > 0 ){//rl类型的旋转
 				tnode = rl( node );
 			}else{//lr类型的旋转
 				tnode = lr( node );
@@ -378,7 +426,6 @@ bool dealbf( struct node* node ,struct node* pare,int flag,bool nextFlag ){
 			}
 			//因为删除节点，不平衡后，旋转导致，高度变化了，父节点任然收到影响，任然需要进行 平衡检测
 			//删除节点后 旋转搞平衡 节点高度必定降低
-			new_flag = true;
 		}else{//删除节点平衡后的情况
 			if( node -> bf != 0 ){//当前节点，删除节点后虽然平衡,当高度改变了，上面的节点任然要进行判断
 				new_flag = true;
