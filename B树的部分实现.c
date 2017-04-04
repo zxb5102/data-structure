@@ -34,13 +34,89 @@ struct queue{
 	struct qnode* end;
 };
 
+bool delete( struct node* node, int value );
 struct msg* bellow( struct msg* msg,struct node* node,int locate);
 struct msg* insert( struct tree* te, struct node* node ,int value );
 struct msg* spit( int value ,int locate,struct node* node );
+int getFront( struct node* node );
 main (){
 	struct tree te;
 	init( &te );
 	getInput( &te );
+	getDel( &te );
+}
+getDel( struct tree* te ){
+	int value ;
+	printf("请输入要删除的值 键人 -1 结束\n");
+	scanf("%d",&value);
+	int flag;
+	while( value != -1 && te -> size > 0){
+		flag = delete( te -> root,value );
+		if( flag == true){
+			te -> size --;
+		}
+		show( te );
+		scanf("%d",&value);
+	}
+}
+int getFront( struct node* node ){
+	int result;
+	int size = node -> size;
+	int* ary= node -> value;
+	struct node** pary = node -> point;
+	if( pary[size] != NULL){
+		result = getFront( pary[size] );
+	}else{
+		result = ary[size - 1];
+		ary[size -1] = 0;
+		node -> size --;
+	}
+	return result;
+}
+//这种算法 不消除node size 为空的 节点 删除一个节点 用sort arc 前面一个节点来替换 ，
+bool delete( struct node* node, int value ){
+	int flag;
+	int i,j;
+	int* ary = node -> value;
+	struct node** pary = node -> point;
+	int tval;
+	for( i=0;i<node -> size;i++ ){
+
+		if( ary[i] > value ){
+
+			break;
+		}else if( ary[i] == value ){
+			if( pary[i] != NULL ){
+				tval = getFront( pary[i] );
+				ary[i] = tval;
+			}else{
+				//将数组往前移动一个位置，覆盖掉要删除的元素，size --,当前已经是 最底层的位置
+				if( node -> size > 1){
+					for( j=i;j< node -> size;j++  ){
+						ary[j] = ary[j+1];
+					}
+					ary[(node -> size) -1] = 0;
+				}else{
+					ary[i] = 0;
+				}
+				node -> size --;
+			}
+
+			flag = true;
+			return flag;
+		}else{
+			continue;
+		}
+	}
+	// get the point 
+	struct node* tp = pary[i];
+	if( tp != NULL ){
+		flag = delete( pary[i],value );
+	}else{
+		// no thie node
+		flag = false;
+	}
+	return flag;
 }
 initq( struct queue* qu){
 	struct qnode* qnode = (struct qnode*)malloc( sizeof(struct qnode) );
@@ -354,3 +430,4 @@ struct msg* spit( int value ,int locate,struct node* node ){
 	rmsg -> node = rnode;
 	return rmsg;
 }
+
